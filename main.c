@@ -1,8 +1,8 @@
 /************************* (C) COPYRIGHT 2010 ROBOTIS **************************
  * File Name          : main.c
- * Author             : danceww
- * Version            : V0.0.1
- * Date               : 08/23/2010
+ * Author             : Groupe 4
+ * Version            : V0.1.1
+ * Date               : 22/01/2019
  * Description        : Main program body
  *******************************************************************************/
 
@@ -445,6 +445,12 @@ void buzzWithDelay(unsigned char sensor, int note, int time) {
 //////////////////////////   M A I N   L O O P   ////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+void setSpeed_voiture(int v_up_right, int v_down_right, int v_down_left, int v_up_left){
+    setSpeed(MOTOR_up_right, v_up_right);
+    setSpeed(MOTOR_down_right, v_down_right);
+    setSpeed(MOTOR_down_left, v_down_left);
+    setSpeed(MOTOR_up_left, v_up_left);
+}
 
 int main(void)
 {
@@ -470,7 +476,9 @@ int main(void)
 
   // here, touch all u like :-)
   //
-  int thresholdInfrared = 50 ;
+  int thresholdInfrared = 50 ; // change after experiment
+  int thresholdLuminosity = 10; // change after experiment
+
   // state will define the robot's attitude towards its environment
   // it implements a state machine
   // thats why we call it state :-)
@@ -483,88 +491,79 @@ int main(void)
   infiniteTurn(MOTOR_down_left);
   infiniteTurn(MOTOR_down_right);
   unsigned char field;
+  unsigned char frontier; // change if the right detector doesn't dectect the luminocity
 
   //  printf("Resetting motors\n") ;
-  setSpeed(MOTOR_up_left, 0);
-  setSpeed(MOTOR_up_right, 0);
-  setSpeed(MOTOR_down_left, 0);
-  setSpeed(MOTOR_down_right, 0);
+  setSpeed_voiture(0, 0, 0, 0);
 
   // state should equal INIT only at the beginning of each match
 
   while(state!=STOP)
   {
-
-     while (state==INIT) {
-       int z = 0;
-     // play some music
-       buzzWithDelay(SENSOR, 30, 500);
-       buzzWithDelay(SENSOR, 40, 200);
-       buzzWithDelay(SENSOR, 50, 200);
-
-       // blink some lights
-       TxDString("blink!!\n") ;
-       for(z=0; z<3; z++)
-       {
-
-	 GPIO_SetBits(PORT_LED_POWER, PIN_LED_POWER);
-	 GPIO_ResetBits(PORT_LED_MANAGE, PIN_LED_MANAGE);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_MANAGE, PIN_LED_MANAGE);
-	 GPIO_ResetBits(PORT_LED_PROGRAM, PIN_LED_PROGRAM);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_PROGRAM, PIN_LED_PROGRAM);
-	 GPIO_ResetBits(PORT_LED_PLAY, PIN_LED_PLAY);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_PLAY, PIN_LED_PLAY);
-	 GPIO_ResetBits(PORT_LED_TX, PIN_LED_TX);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_TX, PIN_LED_TX);
-	 GPIO_ResetBits(PORT_LED_RX, PIN_LED_RX);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_RX, PIN_LED_RX);
-	 GPIO_ResetBits(PORT_LED_AUX, PIN_LED_AUX);
-	 mDelay(250);
-
-	 GPIO_SetBits(PORT_LED_AUX, PIN_LED_AUX);
-	 GPIO_ResetBits(PORT_LED_POWER, PIN_LED_POWER);
-	 mDelay(250);
-
-	 /* TxDString("lights on...\n") ; */
-	 /* lightOn(MOTOR_up_right); */
-         /* lightOn(MOTOR_up_left); */
-         /* lightOn(MOTOR_down_left); */
-         /* lightOn(MOTOR_down_right); */
-	 /* mDelay(2) ; */
-         /* TxDString("lights oFF...\n") ; */
-         /* lightOff(MOTOR_up_right); */
-         /* lightOff(MOTOR_up_left); */
-         /* lightOff(MOTOR_down_left); */
-         /* lightOff(MOTOR_down_right); */
-       }
-
-       state=GO_TO_CENTER;
-
+     // when the robot has crossed a white line
+     while (state==UNSAFE){
+          TxDString("\nUNSAFE\n") ;
+          // detect the current speed
+          unsigned int speed_tmp[4];
+          //unsigned int angle_tmp[4];
+          int i;
+          for (i=0;i<4;i++){
+              	getSpeed(i+1, &speed_tmp[i]);
+              	//getAngle(i+1, &angle_tmp[i]);
+          }
+          
+          // change the direction of mouvement
+          setSpeed_voiture(-speed_tmp[0], -speed_tmp[1], -speed_tmp[2], -speed_tmp[3]);
+          
+          //advance for 1 s, if safe then continue seeking, if not then stay in UNSAFE
+          int t = 0;
+          while (t<20){
+		rightLuminosity(SENSOR, &frontier);
+             	{
+        		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+       			TxDByte16(frontier);
+        		TxDString("\n");
+		}
+              	if(frontier<thresholdLuminosity/2){
+                  	state = SEEKING;
+                  	break;
+              	}
+              	mDelay(50);
+              	t++;
+     	  }
      }
-
-
+	  
+	  
+     while (state==INIT) {
+	     state=GO_TO_CENTER;
+     }
+	  
+     
      while (state==GO_TO_CENTER) {  // the temporisation should be adapted
        TxDString("\nGO TO CENTER\n") ;
        // go straight assuming its a 4_wheeled robot to the center of the field
-       setSpeed(MOTOR_up_left, speed_ini);
-       setSpeed(MOTOR_down_left, speed_ini);
        // /!\ since the motors are set in opposite directions, the speeds should
        //     be opposite for each side
-       setSpeed(MOTOR_up_right, -speed_ini);
-       setSpeed(MOTOR_down_right, -speed_ini);
+       setSpeed_voiture(-speed_ini, -speed_ini, speed_ini, speed_ini);
 
        // advance for 3s, maybe adapt...
-       mDelay(3);
+       // detect if cross the white line
+       int t = 0;
+       while (t<60){
+	       rightLuminosity(SENSOR, &frontier);
+	       {
+        		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+       			TxDByte16(frontier);
+        		TxDString("\n");
+		}
+               if(frontier>=thresholdLuminosity){
+                 	state = UNSAFE;
+                 	break;
+             	}
+             	mDelay(50);
+             	t++;
+       }
+	     
        state=SEEKING;
      }
 
@@ -572,45 +571,64 @@ int main(void)
 
      // begin the "seeking for an opponent" phase
      while (state==SEEKING) {
-       // the robot starts spinning around
-       setSpeed(MOTOR_up_left, speed_ini);
-       setSpeed(MOTOR_up_right, speed_ini);
-       setSpeed(MOTOR_down_left, speed_ini);
-       setSpeed(MOTOR_down_right, speed_ini);
-       centerInfraRed(SENSOR, &field);
-       {
-	 TxDString("\nSEEKING SENSOR VALUE") ;
-	 TxDByte16(field);
-	 TxDString("\n") ;
-       }
+	 TxDString("\nSEEKING\n") ;
 
-       // opponent detection will result in an attitude change
-       if (field >= thresholdInfrared)  // indeed this condition should be explicit
-         state = CHASING;
-
-     }
+       	// the robot starts spinning around
+	setSpeed_voiture(speed_ini, speed_ini, speed_ini, speed_ini);
+	
+	// detect if cross a white line
+	rightLuminosity(SENSOR, &frontier);
+	{
+        	TxDString("\nLUMINOCITY SENSOR VALUE") ;
+       		TxDByte16(frontier);
+        	TxDString("\n");
+	}
+        if(frontier>=thresholdLuminosity){
+            	 state = UNSAFE;
+        }
+	     
+	//detect the opponent
+       	centerInfraRed(SENSOR, &field);
+       	{
+		TxDString("\nSEEKING SENSOR VALUE") ;
+	 	TxDByte16(field);
+	 	TxDString("\n") ;
+       	}
+       	// opponent detection will result in an attitude change
+       	if (field >= thresholdInfrared){  // indeed this condition should be explicit
+         	state = CHASING;
+	}
+    }
 
     // the robot will focus the opponent and try to push him away,
     // as hard as possible
      while (state==CHASING) {
-       setSpeed(MOTOR_up_left, speed_max);
-       setSpeed(MOTOR_down_left, speed_max);
-       setSpeed(MOTOR_up_right, -speed_max);
-       setSpeed(MOTOR_down_right, -speed_max);
+       TxDString("\nCHASING\n") ;
+       setSpeed_voiture(-speed_max, -speed_max, speed_max, speed_max);
+	     
+       // test if the robot crosses a white line
+       rightLuminosity(SENSOR, &frontier);
+	{
+       		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+       		TxDByte16(frontier);
+       		TxDString("\n");
+	}
+       if(frontier>thresholdLuminosity){
+             state = UNSAFE;
+       }     
+	
        centerInfraRed(SENSOR, &field);
-       { TxDString("\nCHASING SENSOR VALUE") ;
-	 TxDByte16(field);
-	 TxDString("\n") ;
+       { 
+	       TxDString("\nCHASING SENSOR VALUE") ;
+	 	TxDByte16(field);
+	 	TxDString("\n") ;
        }
 
        // if, for whatever reason, the robot does not detect any obstacle anymore
        // it returns to its seeking opponent phase
        if (field<thresholdInfrared/2)
          state=SEEKING;
-
-
      }
-
   }
 
   while (1) {} ;
