@@ -1,0 +1,48 @@
+Programmation pour les nuls :
+
+TxDString = printf
+speed dans [-1023,1023] -> 0 == vitesse nulle
+=> on peut augmenter la vmax
+
+ordres : id,(instruction){1=ping,2=read,3=write,6=reset,131=write on multiple actuator},address,parameters,
+
+dxl_get_result -> permet d'obtenir un réponse d"état (erreur ou non)
+
+id = id du composant ie 1,2,3,4 pour les moteurs et 100 pour le capteur
+
+AX[S1/12]_CTAB_ID_ObstacleDetectionFlag -> définis dans les fichiers .h comme étant les adresses des instructions correspondantes
+
+A partir de la ligne 630, ne toucher à rien.
+Fonction main = élaboration de la stratégie.
+
+Pour fonctionner, les moteurs doivent être en mode infinite turn == instruction angle minimum ==0
+Le mode normal semble être inutile -> utile que lorsque on veut asservir les moteurs en angles
+
+2 méthodes pour modifier une led d'état -> inutile
+
+fonctions get (id_composants, *variable)-> renvoi la valeur dans le pointeur mis en arg
+
+Obstacles : instruction
+Dépassements de bordures : Luminosité
+Fonctions check : flags ie ildevrait il y avoir 3 bits (0=rien,1 = obstacle)
+Sinon méthodes spécialisées -> renvoit la valeur de la distance
+
+Fonction datasound inutile
+buzz : time = 254 == infinite , time = 0 == ca s'arrete; sinon 0<time <50
+
+fonction mDelay(t) ne change rien pendant t secondes -> si le véhicule avancait, il continu
+
+main :
+    on fonctionne par changements de comportements/d'états du robot
+    field = valur d'IR recu, cad si field élevé alors il y a qqchose
+    il n'y a pas de detection de ligne blanche -> nécessitera également la détermination d'un threshold efficace
+    A FAIRE déterminer le thresholdInfrared efficace
+
+Tresholds :
+	IR : Aucun obstacle -> renvoit 00
+	     Obstacle très proche -> renvoit FF
+
+	Brightness : 
+luminosité 0X1(D,E,F)
+
+    
