@@ -23,7 +23,10 @@ fonctions get (id_composants, *variable)-> renvoi la valeur dans le pointeur mis
 
 Obstacles : instruction
 Dépassements de bordures : Luminosité
-Fonctions check : flags ie ildevrait il y avoir 3 bits (0=rien,1 = obstacle)
+
+
+Fonctions check : flags ie il devrait il y avoir 3 bits (0=rien,1 = obstacle)
+    pour obstacle : 01 et 04 pour les côtés et 02 pour le devant == obstacle; 00 sinon
 Sinon méthodes spécialisées -> renvoit la valeur de la distance
 
 Fonction datasound inutile

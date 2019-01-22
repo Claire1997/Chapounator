@@ -410,56 +410,34 @@ int main(void)
   USART_Configuration(USART_PC, Baudrate_PC);
   // -----------------UNTIL HERE------------------------- //
 
-  // here, touch all u like :-)
-  //
-  int thresholdInfrared = 50 ;
-
+ int thresholdInfrared = 10 ;
   int state;
-  state= INIT;
-  unsigned char field, info;
+  unsigned char field,brightness, white_line,obs;
 
-//   infiniteTurn(MOTOR_up_left);
-//   infiniteTurn(MOTOR_up_right);
-//   infiniteTurn(MOTOR_down_left);
-//   infiniteTurn(MOTOR_down_right);
+  state = INIT;
   
+//   changeIRThreshold(SENSOR, thresholdInfrared);
 
-//   setSpeed(MOTOR_up_left, 0);
-//   setSpeed(MOTOR_up_right, 0);
-//   setSpeed(MOTOR_down_left, 0);
-//   setSpeed(MOTOR_down_right, 0);
-
- 
   while(state!=STOP)
-  {
-
+  	{
     state=GO_TO_CENTER;
+      while (state==GO_TO_CENTER) {  
+        mDelay(2000);
+		// on utilise uniquement les fonctions directives et pas les check car on peut pas visiblement modifier les thresholds
+    	centerInfraRed(SENSOR, &field);
+      		{
+	  		TxDString("IR VALUE ") ;
+	 	    TxDByte16(field);
+				
+       		}
+    	centerLuminosity(SENSOR, &brightness);
+   			    {
+	 		TxDString(" Brightness VALUE ") ;
+	 		TxDByte16(brightness);	
+       			}
 
-   
-
-     while (state==GO_TO_CENTER) {  
-    //    setSpeed(MOTOR_up_left, speed_ini);
-    //    setSpeed(MOTOR_down_left, speed_ini);
-    //    setSpeed(MOTOR_up_right, -speed_ini);
-    //    setSpeed(MOTOR_down_right, -speed_ini);
-        while(1){
-       // advance for 3s, maybe adapt...
-        mDelay(2);
-        centerInfraRed(SENSOR, &field);
-         {
-	        TxDString("IR VALUE ") ;
-	        TxDByte16(field);
-	        TxDString("\n") ;
-         }
-        centerLuminosity(SENSOR, &info);
-         {
-	        TxDString("Light VALUE ") ;
-	        TxDByte16(info);
-	        TxDString("\n") ;
-         }
-        }
-
-
+    }
+  while (1) {} ;
   return 0;
 }
 
