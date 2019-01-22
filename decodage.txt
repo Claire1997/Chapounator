@@ -1,4 +1,3 @@
-Programmation pour les nuls :
 
 TxDString = printf
 speed dans [-1023,1023] -> 0 == vitesse nulle
