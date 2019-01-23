@@ -126,7 +126,8 @@ byte CheckTimeOut(void);
 #define SEEKING 2
 #define CHASING 3
 #define STOP -1
-
+#define UNSAFE 4
+#define DEFENSE 5
 
 #define speed_ini 400
 #define speed_max 512
@@ -520,7 +521,7 @@ int main(void)
           while (t<20){
 		rightLuminosity(SENSOR, &frontier);
              	{
-        		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+        		TxDString("\nUNSAFE LUMINOCITY SENSOR VALUE");
        			TxDByte16(frontier);
         		TxDString("\n");
 		}
@@ -535,6 +536,7 @@ int main(void)
 	  
 	  
      while (state==INIT) {
+	     TxDString("\nINIT\n") ;
 	     state=GO_TO_CENTER;
      }
 	  
@@ -552,7 +554,7 @@ int main(void)
        while (t<60){
 	       rightLuminosity(SENSOR, &frontier);
 	       {
-        		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+        		TxDString("\nGO_TO_CENTER LUMINOCITY SENSOR VALUE") ;
        			TxDByte16(frontier);
         		TxDString("\n");
 		}
@@ -563,7 +565,6 @@ int main(void)
              	mDelay(50);
              	t++;
        }
-	     
        state=SEEKING;
      }
 
@@ -579,7 +580,7 @@ int main(void)
 	// detect if cross a white line
 	rightLuminosity(SENSOR, &frontier);
 	{
-        	TxDString("\nLUMINOCITY SENSOR VALUE") ;
+        	TxDString("\nSEEKING LUMINOCITY SENSOR VALUE") ;
        		TxDByte16(frontier);
         	TxDString("\n");
 	}
@@ -609,7 +610,7 @@ int main(void)
        // test if the robot crosses a white line
        rightLuminosity(SENSOR, &frontier);
 	{
-       		TxDString("\nLUMINOCITY SENSOR VALUE") ;
+       		TxDString("\nCHASING LUMINOCITY SENSOR VALUE") ;
        		TxDByte16(frontier);
        		TxDString("\n");
 	}
@@ -629,6 +630,36 @@ int main(void)
        if (field<thresholdInfrared/2)
          state=SEEKING;
      }
+	
+     while (state==DEFENSE) {
+        TxDString("\nDEFENSE\n") ;
+        
+        setSpeed_voiture(speed_max, speed_max, -speed_max, -speed_max);
+        
+        // test if the robot crosses a white line
+        rightLuminosity(SENSOR, &frontier);
+        TxDString("\nLUMINOCITY SENSOR VALUE") ;
+        TxDByte16(frontier);
+        TxDString("\n");
+        if(frontier>thresholdLuminosity){
+            state = UNSAFE;
+        }
+        
+        // detect if the opponent is around
+        centerInfraRed(SENSOR, &field);
+        TxDString("\nCHASING SENSOR VALUE") ;
+        TxDByte16(field);
+        TxDString("\n") ;
+        
+        // if, for whatever reason, the robot does not detect any obstacle anymore
+        // it returns to its seeking opponent phase
+        if (field<thresholdInfrared){
+            state=SEEKING;
+        }
+        // if still be chased, then spin a bit
+        setSpeed_voiture(speed_max, speed_max, speed_max, speed_max);
+        mDelay(5);
+    }	  
   }
 
   while (1) {} ;
