@@ -447,17 +447,16 @@ void buzzWithDelay(unsigned char sensor, int note, int time) {
 /////////////////////////////////////////////////////////////////////////
 
 // set the speeds of 4 wheels by one function
-void setSpeed_voiture(int v_up_right, int v_down_right, int v_down_left, int v_up_left){ // rather setSpeed_Car if we keep the conventions
+void setSpeed_voiture(int v_up_left, int v_down_left, int v_down_right, int v_up_right){
     setSpeed(MOTOR_up_right, v_up_right);
     setSpeed(MOTOR_down_right, v_down_right);
     setSpeed(MOTOR_down_left, v_down_left);
     setSpeed(MOTOR_up_left, v_up_left);
 }
 
-
 // check if the robot has been attacked by
 // calculating the difference between the ideal speed and the real speed
-bool checkAttacked(int v_up_right, int if_spin){
+bool checkAttacked(int v_up_left, int if_spin){
     int speed_tmp[4];
     int i = 0;
     for (i=0;i<4;i++){
@@ -465,26 +464,27 @@ bool checkAttacked(int v_up_right, int if_spin){
     }
     
     int gap = 0;
-    unsigned int gapthreshold = 100; // change here, depends on fact
+    unsigned int gapthreshold = 2000; // change here, depends on fact
     if (if_spin==0){
         //if go straight
         for (i=0;i<2;i++){
-            gap += abs(speed_tmp[i] - v_up_right); // I guess this part depends on the ID's of the motors
+            gap += abs(speed_tmp[i] - v_up_left);
         }
         for (i=2;i<4;i++){
-            gap += abs(speed_tmp[i] + v_up_right);
+            gap += abs(speed_tmp[i] + v_up_left);
         }
     }else{
         //if spin
         for (i=0;i<4;i++){
-            gap += abs(speed_tmp[i] - v_up_right);
+            gap += abs(speed_tmp[i] - v_up_left);
         }
     }
     if (gap>=gapthreshold){
-        return 1; // true and false don't exist in C I think
+        return true;
     }
-    return 0;
+    return false;
 }
+
 
 // get the true speed of the wheel with information of direction
 // well we might need to change 1023 into 1024
@@ -594,7 +594,7 @@ int main(void)
 
        // Maybe add a small rotation so that we move forward in a more strategic trajectory
 
-       setSpeed_voiture(-speed_ini, -speed_ini, speed_ini, speed_ini);
+       setSpeed_voiture(speed_ini, speed_ini, -speed_ini, -speed_ini);
 
        // advance for 3s, maybe adapt...
        // detect if cross the white line
@@ -604,14 +604,14 @@ int main(void)
 	        leftInfraRed(SENSOR, &frontier);
 	            {
 			      TxDString("\nGO_TO_CENTER LEFT SENSOR VALUE") ;
-       			TxDByte16(frontier);
-        		TxDString("\n");
+       				TxDByte16(frontier);
+        			TxDString("\n");
 	      	    }
           if(frontier>=thresholdLine){
-            state = UNSAFE;
-            break;
+            	state = UNSAFE;
+           	break;
              	}
-	       if (checkAttacked(-speed_ini, 0)){
+	       if (checkAttacked(speed_ini, 0)){
                  	state = DEFENSE;
                  	break;
              	}
@@ -662,7 +662,7 @@ int main(void)
     // as HARD as possible
      while (state==CHASING) {
        TxDString("\nCHASING\n") ;
-       setSpeed_voiture(-speed_max, -speed_max, speed_max, speed_max);
+       setSpeed_voiture(speed_max, speed_max, -speed_max, -speed_max);
 	     
        centerInfraRed(SENSOR, &field);
        { 
@@ -703,7 +703,7 @@ int main(void)
      while (state==DEFENSE) {
         TxDString("\nDEFENSE\n") ;
         
-        setSpeed_voiture(speed_max, speed_max, -speed_max, -speed_max);
+        setSpeed_voiture(-speed_max, -speed_max, speed_max, speed_max);
         
         // test if the robot crosses a white line
         leftInfraRed(SENSOR, &frontier);
@@ -727,7 +727,7 @@ int main(void)
 		
         // if it's not being attacked or is far away from its opponent
         // it returns to its seeking opponent phase
-        if (field<thresholdInfrared || checkAttacked(speed_max, 0)==1){  // I don't understand the use of the first condition
+        if (field<thresholdInfrared && checkAttacked(-speed_max, 0)==false){  // I don't understand the use of the first condition
             	state=SEEKING;
             	break;
         }
