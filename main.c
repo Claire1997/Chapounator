@@ -113,10 +113,10 @@ byte CheckTimeOut(void);
 ////////////////////////////////////////////////////////////
 
 // change IDs here if the IDs of your motors/sensors are different
-#define MOTOR_down_right 2
-#define MOTOR_down_left 3
-#define MOTOR_up_left 4
-#define MOTOR_up_right 1
+#define MOTOR_down_right 3
+#define MOTOR_down_left 2
+#define MOTOR_up_left 1
+#define MOTOR_up_right 4
 #define SENSOR 100
 
 
@@ -129,8 +129,8 @@ byte CheckTimeOut(void);
 #define UNSAFE 4
 #define DEFENSE 5
 
-#define speed_ini 400
-#define speed_max 512
+#define speed_ini 700
+#define speed_max 1023
 
 
 //////////////////////////////////////
@@ -447,7 +447,7 @@ void buzzWithDelay(unsigned char sensor, int note, int time) {
 /////////////////////////////////////////////////////////////////////////
 
 // set the speeds of 4 wheels by one function
-void setSpeed_voiture(int v_up_right, int v_down_right, int v_down_left, int v_up_left){
+void setSpeed_voiture(int v_up_right, int v_down_right, int v_down_left, int v_up_left){ // rather setSpeed_Car if we keep the conventions
     setSpeed(MOTOR_up_right, v_up_right);
     setSpeed(MOTOR_down_right, v_down_right);
     setSpeed(MOTOR_down_left, v_down_left);
@@ -469,7 +469,7 @@ bool checkAttacked(int v_up_right, int if_spin){
     if (if_spin==0){
         //if go straight
         for (i=0;i<2;i++){
-            gap += abs(speed_tmp[i] - v_up_right);
+            gap += abs(speed_tmp[i] - v_up_right); // I guess this part depends on the ID's of the motors
         }
         for (i=2;i<4;i++){
             gap += abs(speed_tmp[i] + v_up_right);
@@ -481,12 +481,13 @@ bool checkAttacked(int v_up_right, int if_spin){
         }
     }
     if (gap>=gapthreshold){
-        return true;
+        return 1; // true and false don't exist in C I think
     }
-    return false;
+    return 0;
 }
 
 // get the true speed of the wheel with information of direction
+// well we might need to change 1023 into 1024
 void getSpeed_wheel(unsigned char id, int* outSpeed){
     unsigned int v_ori;
     getSpeed(id, &v_ori);
@@ -555,28 +556,31 @@ int main(void)
           }
           
           // change the direction of mouvement
-          setSpeed_voiture(-speed_tmp[0], -speed_tmp[1], -speed_tmp[2], -speed_tmp[3]);
+          setSpeed_voiture(-speed_tmp[0], -speed_tmp[1], -speed_tmp[2], -speed_tmp[3]); // maybe just check directions and then use a defined speed
           
   	  //detect if safe for 1 s, if safe then continue seeking, if not then stay in UNSAFE
           int t = 0;
           while (t<20){
-		leftInfraRed(SENSOR, &frontier);
+		      rightInfraRed(SENSOR, &frontier);  // In the last setup, the white line is checked with the right detector
              	{
-        		TxDString("\nUNSAFE LEFT SENSOR VALUE");
+        		TxDString("\nUNSAFE RIGHT SENSOR VALUE");
        			TxDByte16(frontier);
         		TxDString("\n");
-		}
-              	if(frontier<thresholdLine/2){
+		          }
+              	if(frontier<thresholdLine/2){ // A rough value of half the threshold might too low (the robot will feel unsafe on the arena ground)
                   	state = SEEKING;
                   	break;
               	}
               	mDelay(50);
-              	t++;
+              	t++; // So if the robot is unsafe during 1 s, we're fucked ?
      	  }
      }
 	  
 	  
      while (state==INIT) {
+       ////////////////////
+       //To add : lights, music, &thresholdLine if we're gods //
+       ///////////////////
 	     TxDString("\nINIT\n") ;
 	     state=GO_TO_CENTER;
      }
@@ -587,40 +591,42 @@ int main(void)
        // go straight assuming its a 4_wheeled robot to the center of the field
        // /!\ since the motors are set in opposite directions, the speeds should
        //     be opposite for each side
+
+       // Maybe add a small rotation so that we move forward in a more strategic trajectory
+
        setSpeed_voiture(-speed_ini, -speed_ini, speed_ini, speed_ini);
 
        // advance for 3s, maybe adapt...
        // detect if cross the white line
        int t = 0;
        state=SEEKING;
-       while (t<60){
-	       leftInfraRed(SENSOR, &frontier);
-	       {
-			TxDString("\nGO_TO_CENTER LEFT SENSOR VALUE") ;
+       while (t<60){ //we should check if 3s is adapted
+	        leftInfraRed(SENSOR, &frontier);
+	            {
+			      TxDString("\nGO_TO_CENTER LEFT SENSOR VALUE") ;
        			TxDByte16(frontier);
         		TxDString("\n");
-		}
-               if(frontier>=thresholdLine){
-                 	state = UNSAFE;
-                 	break;
+	      	    }
+          if(frontier>=thresholdLine){
+            state = UNSAFE;
+            break;
              	}
 	       if (checkAttacked(-speed_ini, 0)){
                  	state = DEFENSE;
                  	break;
              	}
+          // we could add the possibility that we already detect our opponent (centerInfrared)
              	mDelay(50);
              	t++;
        }
      }
-
-
 
      // begin the "seeking for an opponent" phase
      while (state==SEEKING) {
 	 TxDString("\nSEEKING\n") ;
 
        	// the robot starts spinning around
-	setSpeed_voiture(speed_ini, speed_ini, speed_ini, speed_ini);
+	setSpeed_voiture(speed_ini, speed_ini, speed_ini, speed_ini); // we need to decide in wich direction to spin (during INIT one side might be highly more efficient) 
 	
 	// detect if cross a white line
 	leftInfraRed(SENSOR, &frontier);
@@ -644,49 +650,55 @@ int main(void)
        	// opponent detection will result in an attitude change
        	if (field >= thresholdInfrared){  // indeed this condition should be explicit
          	state = CHASING;
-		break;
-	}
-	if (checkAttacked(speed_ini, 1)){
+		      break;
+	          }
+	      if (checkAttacked(speed_ini, 1)){
              	state == DEFENSE;
-         }
+            }
+    // right now the robot spins forever, we should add a countdoxn at which we choose a direction and seek somewhere else
     }
 
     // the robot will focus the opponent and try to push him away,
-    // as hard as possible
+    // as HARD as possible
      while (state==CHASING) {
        TxDString("\nCHASING\n") ;
        setSpeed_voiture(-speed_max, -speed_max, speed_max, speed_max);
 	     
-       // test if the robot crosses a white line
-       leftInfraRed(SENSOR, &frontier);
-	{
-       		TxDString("\nCHASING LEFT SENSOR VALUE") ;
-       		TxDByte16(frontier);
-       		TxDString("\n");
-	}
-       if(frontier>=thresholdLine){
-             	state = UNSAFE;
-	     	break;
-       }     
-	
        centerInfraRed(SENSOR, &field);
        { 
 	       	TxDString("\nCHASING CENTER SENSOR VALUE") ;
 	       	TxDByte16(field);
 	 	TxDString("\n") ;
        }
-	     
-       if (checkAttacked(-speed_max, 0)){
-           	state == DEFENSE;
-          	break;
-       }
-
        // if, for whatever reason, the robot does not detect any obstacle anymore
        // it returns to its seeking opponent phase
-       if (field<thresholdInfrared/2){
+       if (field<thresholdInfrared/2){  // Warning we'll probabbly choose 1 so (int) 1/2 might problematic
          	state=SEEKING;
+          break;
        }
-     }
+
+// If we are still chasing, that means the enemy is in front of us, so crossing a whiteline isn't a pb since he would cross first
+
+  //      // test if the robot crosses a white line           
+  //      leftInfraRed(SENSOR, &frontier);
+	// {
+  //      		TxDString("\nCHASING LEFT SENSOR VALUE") ;
+  //      		TxDByte16(frontier);
+  //      		TxDString("\n");
+	// }
+  //      if(frontier>=thresholdLine){
+  //            	state = UNSAFE;
+	//      	break;
+  //      }     
+	  
+    // Same thing, if we see our opponent then our best defense is going forward as FAST as possible to eject him
+
+    //    if (checkAttacked(-speed_max, 0)){
+    //        	state == DEFENSE;
+    //       	break;
+    //    }
+
+ }
 	
      while (state==DEFENSE) {
         TxDString("\nDEFENSE\n") ;
@@ -702,7 +714,7 @@ int main(void)
 	}
         if(frontier>=thresholdLine){
             	state = UNSAFE;
-		break;
+		          break;
         }
         
         // detect if the opponent is around
@@ -715,13 +727,13 @@ int main(void)
 		
         // if it's not being attacked or is far away from its opponent
         // it returns to its seeking opponent phase
-        if (field<thresholdInfrared || checkAttacked(speed_max, 0)==false){
+        if (field<thresholdInfrared || checkAttacked(speed_max, 0)==1){  // I don't understand the use of the first condition
             	state=SEEKING;
             	break;
         }
-        // if still be chased or attacked, then spin a bit
+        // if still be chased or attacked, then spin a bit    -> Nice strat
         setSpeed_voiture(speed_max, speed_max, speed_max, speed_max);
-        mDelay(5);
+        mDelay(5); // be careful this is in ms
     }	  
   }
 
@@ -729,6 +741,8 @@ int main(void)
 
   return 0;
 }
+
+//Nice Job Claire
 
 // --------------DO NOT TOUCH!!------------------------ //
 // NEVER!!! EVER!!!
